@@ -8,6 +8,7 @@ date: 2014-06-08 00:00:01
 ---
 
 Swift is an important chance to find coding passion back to me. So Do Not Lose It! Come on!
+
 <!--more-->
 
 ## Swift 学习笔记 一

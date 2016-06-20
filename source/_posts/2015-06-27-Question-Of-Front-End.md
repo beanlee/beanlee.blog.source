@@ -1,11 +1,13 @@
 title: Questions Of Front-End
-category : 技术分享
+category : Note
 date: 2015-06-27 08:32:19
 tags: [Javascript, HTML, CSS, Front-End]
 ---
 
 前端问题总结整理，持续更新和学习，找到想做的就加油做个行动派吧！
+
 <!--more-->
+
 > 千万不要为了当前不好而跳槽，一定是要因为将来会更好而跳槽！
 
 # HTML

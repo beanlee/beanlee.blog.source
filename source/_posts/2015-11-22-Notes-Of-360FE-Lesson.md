@@ -1,9 +1,10 @@
 title: Notes Of 360 Front-End Lesson
-category : 技术分享
+category : Note
 date: 2015-11-22 23:32:19
 tags: [Javascript, ReractJS, NodeJS, Front-End]
 ---
 
+360前端训练营笔记
 <!-- more -->
 
 # 360前端训练营课堂笔记 － 奇舞团与Facebook畅聊大前端

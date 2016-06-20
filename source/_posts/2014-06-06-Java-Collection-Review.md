@@ -3,12 +3,13 @@ layout: post
 title : Java基础集合类复习
 category : blog
 tagline: ""
-tags : [Java]
+tags : [Java, 总结]
 description : Java基础集合类的问题简单整理
 date: 2014-06-06 00:00:01
 ---
 
 Java基础集合类的问题简单整理
+
 <!--more-->
 
 # JAVA基础集合类Review
