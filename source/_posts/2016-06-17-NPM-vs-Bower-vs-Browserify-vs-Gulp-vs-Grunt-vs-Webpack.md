@@ -32,9 +32,9 @@ tags: [翻译, Javascript, Front-End]
 
 ## Beat Answer
 
-`Webpack` 和 `Browerify` 做了很多相同的工作，比如用于在一个浏览器环境钟打包你的模块。这个模块就是一个 Node 特征，它不在浏览器中存在，并且 ES6 中的 `import` 还没有在任何浏览器中实现，这就是为什么需要被打包。但是，他们在很多方式上是有区别的，`Webpack` 默认提供很多工具（比如代码拆分），`Browerify` 只能在下载插件之后才能做这些，但是使用这两种都能实现相似的效果。它取决于个人习惯（我常使用 `Webpack` ）。`Webpack` 不是一个任务运行器，它只是你通过CLI或是任务运行器直接运行文件的一个中间过程器。
+`Webpack` 和 `Browerify` 做了很多相同的工作，比如用于在一个浏览器环境钟打包你的模块。这个模块就是一个 Node 特征，它不在浏览器中存在，并且 ES6 中的 `import` 还没有在任何浏览器中实现，这就是为什么需要被打包。但是，他们在很多方式上是有区别的，`Webpack` 默认提供很多工具（比如代码拆分），`Browerify` 只能在下载插件之后才能做这些，但是使用这两种都能实现相似的效果。它取决于个人习惯（我常使用 `Webpack` ）。`Webpack` 不是一个任务运行器，它只是你通过CLI或任务运行器直接运行文件的一个中间过程器。
 
-`Webpack-dev-server` 提供一些类似于 `Browser-sync` -a server，你可以将你的 app 部署的地方，并且验证你的前端开发进程直接通过 dev-server 自动刷新浏览器或者在没有热部署的情况下传播变化（比如 React components）。
+`Webpack-dev-server` 提供类似于 `Browser-sync` - 它是一个你可以将你的 app 部署的服务，并且验证你的前端开发进程直接通过 dev-server 自动刷新浏览器或者在没有热部署的情况下传播变化（比如 React components）。
 
 我为了项目的完整和简单的任务编写已经使用`Gulp`，但是我后来发现我既不需要`Gulp`也不需要`Grunt`。所有我需要的都可以使用`npm`组合脚本去运行第三方工具利用它们的 API 完成。在`Gulp`，`Grunt`和`npm script`之间选择取决于你的需要、JS 经验和你工作时的开发经验。
 
