@@ -93,3 +93,14 @@ archive_generator:
     yearly: false
     monthly: false
     daily: false
+
+# sitemap google
+sitemap:
+    path: sitemap.xml
+
+# hexo-hey Admin
+# admin:
+#     name: hexo
+#     password: hey
+#     secret: hey hexo
+#     expire: 60*1

@@ -28,7 +28,7 @@ date: 2016-05-19 22:10:01
 * [blockrain.js](https://github.com/Aerolab/blockrain.js) & [Hextris](https://github.com/Hextris/hextris)
 * [spaceinvaders](https://github.com/dwmkerr/spaceinvaders) & [space-tweet](https://github.com/fat/space-tweet)
 
-![games](http://78renz.com1.z0.glb.clouddn.com/blog-20160519.png)
+![games](http://78renz.com1.z0.glb.clouddn.com/blog-20160519.png?imageslim)
 
 在你写程序之前不要有'必须有个最佳的 idea 才开始动手'这种念头。我见到过在音乐家中有相同的心态。在他们第一次尝试时就努力创造一个高水平，这花费他们全部的精力投入到一首乐曲中。长远的是你将会写出很多很多乐曲，不仅仅是这一首。你完成的第一支乐曲可能不好，你很可能抛弃它。这没什么。在你第一次尝试时，不要试着想要写出最好的章节。你需要学习谱曲的过程。在你写好程序之前你将会编写出糟糕的程序。迈过它，征服它，获取经验你就能开始在需求上自由创作发挥。
 
