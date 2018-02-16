@@ -1,0 +1,1276 @@
+【译】Google出品 - 利用 webpack 做 web 性能优化
+
+===
+
+2018-02-11 Beanlee
+
+原文 https://developers.google.com/web/fundamentals/performance/webpack/
+
+作者 Addy Osmani
+
+## Instroduction 介绍
+
+现代 Web 应用经常用到`bunding tool`用于创建一个生产环境的打包文件（例如脚本、样式等），这个打包文件是已经优化完，并且最小化完成的，并且能够被用户用更少的时间下载到。在这篇文章中，我们将会利用`webpack`来贯穿如何优化网站资源。这样可以帮助用户对于你的网站得到更快地加载和体验。
+
+![webpack-logo](https://img20.360buyimg.com/uba/jfs/t15217/149/2229580840/12989/54324b99/5a815957N5bb3e0c6.png)
+
+webpack 目前是最流行的打包工具之一，深入地利用他的特点去优化代码，拆分脚本成重要和非重要部分还有剔除无用的代码能够保证你的引用有最小的带宽和进程消耗。
+
+![code-splitting](https://img14.360buyimg.com/uba/jfs/t17569/325/476871633/18187/a1e34f41/5a81597fNd77bb5b8.png)
+
+> Note: 我们创建了一个练习用的引用来演示优化的描述。尽力挤出最多的时间来练习这些 tips [`webpack-training-project`](https://github.com/GoogleChromeLabs/webpack-training-project)
+
+让我们从现代 web 应用中最耗费资源之一的 `Javascript`开始。
+
+- 减小前端体积
+- 利用长期缓存
+- 监控并分析应用
+- 结尾
+
+===
+
+## Decrease Front-end Size 减少前端体积
+
+作者 [Ivan Akulov](https://developers.google.com/web/resources/contributors/iamakulov)
+
+当你正在优化一个应用时最初第一件事就是尽可能地让它体积减小。下面就是利用 webpack 如何做。
+
+### Enable minification 启用最小化
+
+最小化是通过去除多余空格、缩短变量名等方式压缩代码。例如：
+
+```javascript
+// Original code
+function map(array, iteratee) {
+  let index = -1;
+  const length = array == null ? 0 : array.length;
+  const result = new Array(length);
+
+  while (++index < length) {
+    result[index] = iteratee(array[index], index, array);
+  }
+  return result;
+}
+```
+to
+
+```javascript
+// Minified code
+function map(n,r){let t=-1;for(const a=null==n?0:n.length,l=Array(a);++t<a;)l[t]=r(n[t],t,n);return l}
+```
+Webpack 支持两种方式最小化代码：UglifyJS 插件和_loader-specific options_。他们可以同时使用。
+
+[The UglifyJS plugin](https://github.com/webpack-contrib/uglifyjs-webpack-plugin)在 bundle 层级中起作用，在编译之后压缩 bundle。下面来展示如何工作：
+
+
+1. 你的代码：
+
+```javascript
+// comments.js
+import './comments.css';
+export function render(data, target) {
+  console.log('Rendered!');
+}
+```
+2. Webpack 打包大致成如下：
+
+```javascript
+// bundle.js (part of)
+"use strict";
+Object.defineProperty(__webpack_exports__, "__esModule", { value: true });
+/* harmony export (immutable) */ __webpack_exports__["render"] = render;
+/* harmony import */ var __WEBPACK_IMPORTED_MODULE_0__comments_css__ = __webpack_require__(1);
+/* harmony import */ var __WEBPACK_IMPORTED_MODULE_0__comments_css_js___default =
+__webpack_require__.n(__WEBPACK_IMPORTED_MODULE_0__comments_css__);
+
+function render(data, target) {
+  console.log('Rendered!');
+}
+```
+3. 使用 UglifyJS 插件大致编译成如下：
+
+```javascript
+// minified bundle.js (part of)
+"use strict";function t(e,n){console.log("Rendered!")}
+Object.defineProperty(n,"__esModule",{value:!0}),n.render=t;var o=r(1);r.n(o)
+```
+插件集成在 webpack 中，把它的配置在`plugins`中就可以启用：
+
+```javascript
+// webpack.config.js
+const webpack = require('webpack');
+
+module.exports = {
+  plugins: [
+    new webpack.optimize.UglifyJsPlugin(),
+  ],
+};
+```
+第二种方式_loader-specific options_ 利用 loader options，可以压缩 Uglify 插件无法最小化的部分。举例，当你利用`css-loader`引入一个 CSS 文件时，文件会编译成一个字符串：
+
+```css
+/* comments.css */
+.comment {
+  color: black;
+}
+```
+to
+
+```javascript
+// minified bundle.js (part of)
+exports=module.exports=__webpack_require__(1)(),
+exports.push([module.i,".comment {\r\n  color: black;\r\n}",""]);
+```
+UglifyJS 由于这是一个字符串不能压缩这段代码。要最小化这个 css 文件内容，我们需要配置 _loader_
+
+```javascript
+// webpack.config.js
+module.exports = {
+  module: {
+    rules: [
+      {
+        test: /\.css$/,
+        use: [
+          'style-loader',
+          { loader: 'css-loader', options: { minimize: true } },
+        ],
+      },
+    ],
+  },
+};
+```
+**{ minimize: true }**
+
+> Note: UglifyJS 插件不能编译 ES2015+(ES2016)，这意味着如果你的 diamante 中使用类、箭头函数和一些新特性语法，不能编译成 ES5，插件会抛异常。
+> 如果需要编译新语法，要使用 [uglifyjs-webpack-plugin](https://github.com/webpack-contrib/uglifyjs-webpack-plugin) 包。也是集成在 webpack 中相同的插件，但是更新一些，能够有能力编译 ES2015+。
+
+#### Further reading
+
+* [The UglifyJsPlugin docs](https://github.com/webpack-contrib/uglifyjs-webpack-plugin)
+* Other popular minifiers: [Babel Minify](https://github.com/webpack-contrib/babel-minify-webpack-plugin), [Google Closure Compiler](https://github.com/roman01la/webpack-closure-compiler)
+
+### Specify `NODE_ENV=production` 明确生产环境信息
+
+减小前端体积的另外一个方法就是在代码中将`NODE_ENV`[环境变量](https://superuser.com/questions/284342/what-are-path-and-other-environment-variables-and-how-can-i-set-or-use-them)设置成`production`。
+
+Libraries 会读取`NODE_ENV`变量判断他们应该在那种模式下工作 - 开发模式 or 生成模式。很多库会基于这个变量有不同的表现。举个例子，当`NODE_ENV`没有设置成`production`，Vue.js 会做额外的检查并且输出一些警告：
+
+
+```javascript
+// vue/dist/vue.runtime.esm.js
+// …
+if (process.env.NODE_ENV !== 'production') {
+  warn('props must be strings when using array syntax.');
+}
+// …
+```
+React 也是类似 - 开发模式下 build 带有一些警告：
+
+```javascript
+// react/index.js
+if (process.env.NODE_ENV === 'production') {
+  module.exports = require('./cjs/react.production.min.js');
+} else {
+  module.exports = require('./cjs/react.development.js');
+}
+
+// react/cjs/react.development.js
+// …
+warning$3(
+  componentClass.getDefaultProps.isReactClassApproved,
+  'getDefaultProps is only used on classic React.createClass ' +
+  'definitions. Use a static property named `defaultProps` instead.'
+);
+// …
+```
+这些检查和警告通常在生产环境下不必要的，但是他们仍然保留在代码中并且会增加库的体积。通过配置 webpack 的 [`DefinePlugin`](https://webpack.js.org/plugins/define-plugin/) 来删除他们：
+
+```javascript
+ // webpack.config.js
+const webpack = require('webpack');
+
+module.exports = {
+  plugins: [
+    new webpack.DefinePlugin({
+      'process.env.NODE_ENV': '"production"',
+    }),
+    new webpack.optimize.UglifyJsPlugin(),
+  ],
+};
+```
+`DefinePlugin`用确定的变量替换所有存在的说明变量。利用下面配置：
+
+1. `DefinePlugin`将用`"production"`替换到`process.env.NODE_ENV`：
+
+```javascript
+// vue/dist/vue.runtime.esm.js
+if (typeof val === 'string') {
+  name = camelize(val);
+  res[name] = { type: null };
+} else if (process.env.NODE_ENV !== 'production') {
+  warn('props must be strings when using array syntax.');
+}
+```
+to
+
+```javascript
+// vue/dist/vue.runtime.esm.js
+if (typeof val === 'string') {
+  name = camelize(val);
+  res[name] = { type: null };
+} else if ("production" !== 'production') {
+  warn('props must be strings when using array syntax.');
+}
+```
+> Note: 如果你偏向有通过 CLI 配置变量，可以查看一下 [EnvironmentPlugin](https://webpack.js.org/plugins/environment-plugin/)。它和`DefinePlugin`类似，但读环境并且自动替换`process.env`表达式。
+
+2.`UglifyJS`会移除掉所有`if`分支 - 因为`"production" !== 'production'`永远返回 false ，插件理解代码内的判断分支将永远不会执行：
+
+```javascript
+// vue/dist/vue.runtime.esm.js
+if (typeof val === 'string') {
+  name = camelize(val);
+  res[name] = { type: null };
+} else if ("production" !== 'production') {
+  warn('props must be strings when using array syntax.');
+}
+```
+to
+
+```javascript
+// vue/dist/vue.runtime.esm.js (without minification)
+if (typeof val === 'string') {
+  name = camelize(val);
+  res[name] = { type: null };
+}
+```
+> Note: 不一定强制要求使用 `UglifyJSPlugin`。你可以使用其他不同的最小化工具，这些页支持移除无用代码（例如，the [Babel Minify plugin](https://github.com/webpack-contrib/babel-minify-webpack-plugin) or the [Google Closure Compiler plugin](https://github.com/roman01la/webpack-closure-compiler)）
+
+#### Further Reading
+
+*   [What “environment variables” are](https://superuser.com/questions/284342/what-are-path-and-other-environment-variables-and-how-can-i-set-or-use-them)
+*   Webpack docs about: [`DefinePlugin`](https://webpack.js.org/plugins/define-plugin/), [`EnvironmentPlugin`](https://webpack.js.org/plugins/environment-plugin/)
+
+### Use ES Modules 使用 ES 模块
+
+下面这个方式利用 [ES modules](https://ponyfoo.com/articles/es6-modules-in-depth) 减小前端体积。
+
+当你使用 ES module，webpack 有能力去做 tree-shaking。Tree-shaking 贯穿整个依赖树，检查那些依赖被使用，移除无用依赖。因此，如果你使用 ES module 语法，webpack 可以排除掉无用代码：
+1. 一个有多个 export 的文件，但是 app 只需要其中一个：
+
+```javascript
+// comments.js
+export const render = () => { return 'Rendered!'; };
+export const commentRestEndpoint = '/rest/comments';
+
+// index.js
+import { render } from './comments.js';
+render();
+```
+2. webpack 理解 `commentRestEndPoint`没有使用，同时不能在一个 bundle 中生成单独的 export：
+
+```javascript
+// bundle.js (part that corresponds to comments.js)
+(function(module, __webpack_exports__, __webpack_require__) {
+  "use strict";
+  const render = () => { return 'Rendered!'; };
+  /* harmony export (immutable) */ __webpack_exports__["a"] = render;
+
+  const commentRestEndpoint = '/rest/comments';
+  /* unused harmony export commentRestEndpoint */
+})
+```
+3. `UglifyJSPlugin`移除无用变量：
+
+```javascript
+// bundle.js (part that corresponds to comments.js)
+(function(n,e){"use strict";var r=function(){return"Rendered!"};e.b=r})
+```
+如果他们都是有 ES module 编写，就是与一些库并存时也是生效的。
+
+> Note: 在 webpack 中，tree-shaking 没有 minifier 是无法生效的。 webpack 仅仅移除了没有被用到的 export 变量；`UglifyJSPlugin`才会移除无用代码。所以如果你编译打包时没有使用 minifier，打包后体积并不会更小。你也可以不一定使用这个插件。其他最小化的插件也支持移除 dead code（例如：[Babel Minify plugin](https://github.com/webpack-contrib/babel-minify-webpack-plugin) or [Google Closure Compiler plugin](https://github.com/roman01la/webpack-closure-compiler)）
+
+> Warning: 不要将 ES module 编译到 CommonJS 中。 如果你使用 Babel `babel-preset-env` or `babel-preset-es2015`，检查一下当前的配置。默认情况下， ES `import` and `export` to CommonJS `require` and `module.exports`。通过设置 option 来禁止掉[Pass the `{ modules: false }` option](https://github.com/babel/babel/tree/master/experimental/babel-preset-env)。
+
+
+#### Futher reading
+
+*   [“ES6 Modules in depth”](https://ponyfoo.com/articles/es6-modules-in-depth)
+*   Webpack docs [about tree shaking](https://webpack.js.org/guides/tree-shaking/)
+
+### Optimize images 优化图片
+
+图片基本会占局页面一半以上体积。虽然它们不像 JavaScript 那么重要（比如它们不会阻止页面渲染），但图片仍然会占用掉一大部分带宽。利用`url-loader`，`svg-url-loader`和`image-webpack-loader`来在 webpack 中进行优化。
+
+`url-loader` 允许将小静态文件打包进 app。没有配置，他需要通过 file，将它放在编译后的打包 bundle 内并返回一个这个文件的 url。然而，如果我们注明`limit`选项，它将会 encode 成更小的文件 base64 文件 url。这是可以将图片放在Javascript 代码中，同时节省 HTTP 请求：
+
+```javascript
+// webpack.config.js
+module.exports = {
+  module: {
+    rules: [
+      {
+        test: /\.(jpe?g|png|gif)$/,
+        loader: 'url-loader',
+        options: {
+          // Inline files smaller than 10 kB (10240 bytes)
+          limit: 10 * 1024,
+        },
+      },
+    ],
+  }
+};
+```
+
+```javascript
+// index.js
+import imageUrl from './image.png';
+// → If image.png is smaller than 10 kB, `imageUrl` will include
+// the encoded image: 'data:image/png;base64,iVBORw0KGg…'
+// → If image.png is larger than 10 kB, the loader will create a new file,
+// and `imageUrl` will include its url: `/2fcd56a1920be.png`
+```
+> Note: 内联图片减少了独立请求的数量，这是很好的方式（[even with HTTP/2](https://blog.octo.com/en/http2-arrives-but-sprite-sets-aint-no-dead/)），但是会增加 bundle下载和转换的时间和内存的消耗。一定要确保不要嵌入超大图片或者较多的图片 - 否则增加的 bundle 的时间将会掩盖做成内联图片的收益。
+
+`svg-url-loader`与`url-loader`类似 - 都是将使用 [URL encoding](https://developer.mozilla.org/en-US/docs/Glossary/percent-encoding)  encode 文件。这对对于 SVG 图片很奏效 - 因为 SVG 文件是文本，encoding 在体积上更有效率：
+
+```javascript
+// webpack.config.js
+module.exports = {
+  module: {
+    rules: [
+      {
+        test: /\.svg$/,
+        loader: 'svg-url-loader',
+        options: {
+          // Inline files smaller than 10 kB (10240 bytes)
+          limit: 10 * 1024,
+          // Remove the quotes from the url
+          // (they’re unnecessary in most cases)
+          noquotes: true,
+        },
+      },
+    ],
+  },
+};
+```
+> Note: svg-url-loader 拥有改善 IE 浏览器支持的 options，但是在其他浏览器中更糟糕。如果你需要兼容 IE 浏览器，[设置 iesafe: true 选项](https://github.com/bhovhannes/svg-url-loader#iesafe)
+
+`image-webpack-loader`压缩图片使之变小。它支持 JPG，PNG，GIF 和 SVG，因为我们将会使用它所有类型。
+
+这个 loader 不会将图片嵌入在应用内，因此它必须与`url-loader`和`svg-url-loader`配合使用。避免复制粘贴到相同的 rules 中（一个用于 JPG/PNG/GIF 图片，另一个用于 SVG 图片），我们来使用`enforce: pre`作为单独的一个 rule 涵盖这个 loader：
+
+```javascript
+// webpack.config.js
+module.exports = {
+  module: {
+    rules: [
+      {
+        test: /\.(jpe?g|png|gif|svg)$/,
+        loader: 'image-webpack-loader',
+        // This will apply the loader before the other ones
+        enforce: 'pre',
+      },
+    ],
+  },
+};
+```
+默认 loader 的设置就已经可以了 - 但是如果你想要更深入的配置，查看 [the plugin options](https://github.com/tcoopman/image-webpack-loader#options)。为了选择哪些 options 需要明确，可以查看 Addy Osmani 的 [guide on image optimization](https://images.guide/)
+
+#### Further reading
+
+*   ["What is base64 encoding used for?"](https://stackoverflow.com/questions/201479/what-is-base-64-encoding-used-for)
+*   Addy Osmani’s [guide on image optimization](https://images.guide/)
+
+### Optimize dependencies 优化依赖
+
+平均一半以上的 Javascript 体积大小来源于依赖包，并且这些可能都不是必要的。
+
+举一个例子来说，Lodash（v4.17.4）增加了最小化代码的 72KB 大小到 bundle 中。但是如果你仅仅用到它的20个方法，大于 65 KB 没有用处。
+
+另外一个例子就是 Moment.js。 V2.19.1版本最小化后有 223KB，体积巨大 - 截至2017年10月一个页面内的 Javascript 平均体积是 452KB。但是，本地文件的体积占 170KB。如果你没有用到 多语言版 Moment.js，这些文件都会没有目的地使 bundle 更臃肿。
+
+所有这些依赖都可以被轻易优化。我们在 Github repo 手机了优化的建议，[check it out](https://github.com/GoogleChromeLabs/webpack-libs-optimizations)！
+
+### Enable module concatenation for ES modules (aka scope hoisting)
+
+当你构建一个 bundle 时，webpack 将每一个 module 封装进 function 中：
+
+```javascript
+// index.js
+import {render} from './comments.js';
+render();
+
+// comments.js
+export function render(data, target) {
+  console.log('Rendered!');
+}
+```
+to
+
+```javascript
+// bundle.js (part  of)
+/* 0 */
+(function(module, __webpack_exports__, __webpack_require__) {
+
+  "use strict";
+  Object.defineProperty(__webpack_exports__, "__esModule", { value: true });
+  var __WEBPACK_IMPORTED_MODULE_0__comments_js__ = __webpack_require__(1);
+  Object(__WEBPACK_IMPORTED_MODULE_0__comments_js__["a" /* render */])();
+
+}),
+/* 1 */
+(function(module, __webpack_exports__, __webpack_require__) {
+
+  "use strict";
+  __webpack_exports__["a"] = render;
+  function render(data, target) {
+    console.log('Rendered!');
+  }
+
+})
+```
+在以前，这是使 CommonJS/AMD modules 互相分离所必须的。但是，这回增加体积同时性能堪忧。
+
+Webpack 2 介绍了 ES modules 的支持，不像 CommonJS 和 AMD modules 一样，而是能够不用将每一个 module 用 function 封装起来。同时 Webpack 3 利用[`ModuleConcatenationPlugin`](https://webpack.js.org/plugins/module-concatenation-plugin/)完成这样一个 bundle，下面是例子：
+
+```javascript
+// index.js
+import {render} from './comments.js';
+render();
+
+// comments.js
+export function render(data, target) {
+  console.log('Rendered!');
+}
+```
+to
+
+```javascript
+// Unlike the previous snippet, this bundle has only one module
+// which includes the code from both files
+// 与前面的代码不同，这个 bundle 只有一个 module，同时包含两个文件
+
+// bundle.js (part of; compiled with ModuleConcatenationPlugin)
+/* 0 */
+(function(module, __webpack_exports__, __webpack_require__) {
+
+  "use strict";
+  Object.defineProperty(__webpack_exports__, "__esModule", { value: true });
+
+  // CONCATENATED MODULE: ./comments.js
+  function render(data, target) {
+    console.log('Rendered!');
+  }
+
+  // CONCATENATED MODULE: ./index.js
+  render();
+
+})
+```
+看到区别了吗？在这个 bundle 中， module 0 需要 module 1 的 render 方法。使用 `ModuleConcatenationPlugin`，`require`被直接简单的替换成 require 函数，同时 module 1 被删除删除掉了。这个 bundle 拥有更少的 modules，就有更少的 modules 损耗！
+
+启用这个功能，可以在插件列表中增加`ModuleConcatenationPlugin`：
+```javascript
+// webpack.config.js
+const webpack = require('webpack');
+
+module.exports = {
+  plugins: [
+    new webpack.optimize.ModuleConcatenationPlugin(),
+  ],
+};
+```
+> Note：想要知道为什么这个功能不是默认启用？Concatenating modules 很棒， [但是他会增加编译的时间同时破坏 module 的热更新](https://twitter.com/TheLarkInn/status/925800563144454144)。这就是为什么只在生产环境中启用的原因了。
+
+#### Further reading
+
+*   Webpack docs [for the ModuleConcatenationPlugin](https://webpack.js.org/plugins/module-concatenation-plugin/)
+*   [“Brief introduction to scope hoisting”](https://medium.com/webpack/brief-introduction-to-scope-hoisting-in-webpack-8435084c171f)
+*   Detailed description of [what this plugin does](https://medium.com/webpack/webpack-freelancing-log-book-week-5-7-4764be3266f5)
+
+### Use `externals` if you have both webpack and non-webpack code 如果代码中包含 webpack 和非 webpack 的代码要使用 externals
+
+你可能拥有一个体积庞大的工程，其中一部分代码可以使用 webpack 编译，而有一些代码又不能。比如一个视频网站，播放器的 widget 可能通过 webpack 编译，但是其周围页面区域可能不是：
+
+![video-hosting](https://img30.360buyimg.com/uba/jfs/t15334/148/2273118093/210074/8260a296/5a81599dN148751d5.png)
+
+如果两部分代码有相同的依赖，你可以共享这些依赖以便减少重复下载耗时。[the webpack’s `externals` option](https://webpack.js.org/configuration/externals/)就干了这件事 - 它用变量或者外部引用来替代 modules。
+
+#### 如果依赖是挂载到 window 
+
+如果你的非 webpack 代码依靠这些依赖，这些依赖是挂载 window 上的变量，可以将依赖名称 alias 成变量名：
+
+```javascript
+// webpack.config.js
+module.exports = {
+  externals: {
+    'react': 'React',
+    'react-dom': 'ReactDOM',
+  },
+};
+```
+利用这个配置，webpack 将不会打包 `react` 和 `react-dom`包。取而代之，他们会被替换成下面这个样子：
+
+```javascript
+// bundle.js (part of)
+(function(module, exports) {
+  // A module that exports `window.React`. Without `externals`,
+  // this module would include the whole React bundle
+  module.exports = React;
+}),
+(function(module, exports) {
+  // A module that exports `window.ReactDOM`. Without `externals`,
+  // this module would include the whole ReactDOM bundle
+  module.exports = ReactDOM;
+})
+```
+#### 如果依赖是当做 AMD 包被加载
+
+如果你的非 webpack 代码没有将依赖暴露挂载到 window 上，这就更复杂了。但是如果非 webpack 代码使用 AMD 包的形式消费了这些依赖，你仍然可以避免重复的代码加载两次。
+
+具体如何做呢？将 webpack 代码编译成一个 AMD module 同时又名成一个库 URLs：
+
+```javascript
+// webpack.config.js
+module.exports = {
+  output: { libraryTarget: 'amd' },
+
+  externals: {
+    'react': { amd: '/libraries/react.min.js' },
+    'react-dom': { amd: '/libraries/react-dom.min.js' },
+  },
+};
+```
+Webpack 将会把 bundle 包装进 `define()`同时让它依赖于这些URLs：
+
+```javascript
+// bundle.js (beginning)
+define(["/libraries/react.min.js", "/libraries/react-dom.min.js"], function () { … });
+```
+如果非 webpack 代码使用相同的 URLs 加载依赖，这些文件将会加载一次 - 多余的请求会使用缓存。
+
+> Note：webpack 只是替换那些`externals`对象中的准确匹配的 keys 的引用。这意味着如果你的代码这样写`import React from 'react/umd/react.production.min.js'`，这个库是不会被 bundle 排除掉的。这是因为 - webpack 并不知道 `import 'react'` 和 `import 'react/umd/react.production.min.js'` 是同一个库，这样比较谨慎。
+
+#### Further reading
+
+*   Webpack docs [on `externals`](https://webpack.js.org/configuration/externals/)
+
+### Summing up 总结
+
+*   Minimize your code with the `UglifyJsPlugin` and loader options
+*   Remove the development-only code with the `DefinePlugin`
+*   Use ES modules to enable tree shaking
+*   Compress images
+*   Apply dependency-specific optimizations
+*   Enable module concatenation
+*   Use `externals` if this makes sense for you
+
+## Make use of long-term caching 利用好长时缓存
+
+作者 [Ivan Akulov](https://developers.google.com/web/resources/contributors/iamakulov)
+
+在做完优化应用体积之后的下一步提升应用加载时间的就是缓存。在客户端中使用缓存作为应用的一部分同时每一次减少重新下载。
+
+### Use bundle versioning and cache headers 使用 bundle 版本和缓存头信息
+
+做缓存通用的解决办法：
+1. 告诉浏览器缓存一个文件很长时间（比如一年）
+
+```
+# Server header
+Cache-Control: max-age=31536000
+```
+Note：如果你不熟悉 `Cache-Control`做了什么，你可以看一下Jake Archibald 的精彩博文 [on caching best practices](https://jakearchibald.com/2016/caching-best-practices/)
+
+2.当文件改变需要强制重新下载时候去重命名这些文件
+
+```html
+<!-- Before the change -->
+<script src="./index-v15.js"></script>
+
+<!-- After the change -->
+<script src="./index-v16.js"></script>
+```
+这些方法告诉浏览器下载这些 JS 文件，缓存起来。浏览器将会只在文件名变化是才会请求网络（或者是缓存失效）。
+
+使用 webpack，你也可以做同样的事，但是是可以使用版本号来解决，你需要明确这个文件的 hash。使用 [`[chunkhash]`](https://webpack.js.org/configuration/output/#output-filename) 可以将 hash 值包含进文件名中：
+
+```javascript
+// webpack.config.js
+module.exports = {
+  entry: './index.js',
+  output: {
+    filename: 'bundle.[chunkhash].js',
+        // → bundle.8e0d62a03.js
+  },
+};
+```
+> Note: webpack 可能会生成不同的 hash 就是 bundle 相同 - 比如你重名了了一个文件或者重新在不同的操作系统下编译了一个 bundle。 [This is a bug.](https://github.com/webpack/webpack/issues/1479)
+> 如果你需要将文件名发送给客户端，也可以使用 `HtmlWebpackPlugin` 或者 `WebpackManifestPlugin`。
+
+`HtmlWebpackPlugin` 很简单，但是灵活性欠缺一些。编译时，插件会生成一个 HTML 文件，这其中包括所有的编译后的资源文件。如果你的业务逻辑不复杂，这就非常适合你：
+
+```html
+<!-- index.html -->
+<!doctype html>
+<!-- ... -->
+<script src="bundle.8e0d62a03.js"></script>
+```
+`WebpackManifestPlugin`更灵活一些，它可以帮助你解决业务负责的部分。编译时它会生成一个 JSON 文件，这文件保存这没有 hash 值文件与有 hash 文件之间的映射。服务端利用这个 JSON 可以识别出那个文件有效：
+
+```json
+// manifest.json
+{
+  "bundle.js": "bundle.8e0d62a03.js"
+}
+```
+#### Further reading
+
+*   Jake Archibald [about caching best practices](https://jakearchibald.com/2016/caching-best-practices/)
+
+### Extract dependencies and runtime into a separate file 外部依赖和独立文件运行时
+
+#### Dependencies 依赖包
+
+App 依赖通常情况下趋向于比实际 app 内代码中更少的变化。如果你将他们移到独立的文件中，浏览器将可以把他们独立缓存起来 - 同时不会每次 app 代码改变时重新下载。
+
+> Key Term: 在 webpack 的技术中，利用 app 代码拆分文件被称为 `chunks`。我们后面会用到这个名词。
+
+为了将依赖包提取到单独的 chunk 中，下面分为三步：
+
+1. 使用`[name].[chunkname].js`替换`output`的文件名：
+
+```javascript
+// webpack.config.js
+module.exports = {
+  output: {
+    // Before
+    filename: 'bundle.[chunkhash].js',
+    // After
+    filename: '[name].[chunkhash].js',
+  },
+};
+```
+当 webpack 构建应用时，它会用一个带有 chunk 的名称来替换`[name]`。如果没有添加`[name]`部分，我们不得不通过 chunks 之间的 hash 区别来比较他们的区别 - 那就太难了！
+
+2. 将`entry`转成一个对象：
+
+```javascript
+// webpack.config.js
+module.exports = {
+  // Before
+  entry: './index.js',
+  // After
+  entry: {
+    main: './index.js',
+  },
+};
+```
+在这段代码中，"main" 对象是一个 chunk 的名字。这个名字将会被步骤 1 里面的 `[name]`代替。目前为止，如果你构建一个 app，chunk 就会包括整个 app 的代码 - 就像我们没有做这些步骤一样。但是很快就会产生变化。
+
+3. 添加  [`CommonsChunkPlugin`](https://webpack.js.org/plugins/commons-chunk-plugin/)：
+
+
+```javascript
+// webpack.config.js
+module.exports = {
+  plugins: [
+    new webpack.optimize.CommonsChunkPlugin({
+      // A name of the chunk that will include the dependencies.
+      // This name is substituted in place of [name] from step 1
+      name: 'vendor',
+
+      // A function that determines which modules to include into this chunk
+      minChunks: module => module.context &&
+        module.context.includes('node_modules'),
+    }),
+  ],
+};
+```
+这个插件将包括全部`node_modules`路径下的 modules 同时将他们移到一个单独的文件中，这个文件被称为 `vendor.[chunkhash].js`。
+
+完成了上面的步骤，每一次 build 都将生成两个文件。浏览器会将他们单独缓存 - 以便代码该生改变时重新下载。
+
+
+```bash
+$ webpack
+Hash: ac01483e8fec1fa70676
+Version: webpack 3.8.1
+Time: 3816ms
+                           Asset   Size  Chunks             Chunk Names
+  ./main.00bab6fd3100008a42b0.js  82 kB       0  [emitted]  main
+./vendor.d9e134771799ecdf9483.js  47 kB       1  [emitted]  vendor
+```
+#### Webpack runtime code
+
+不幸的是，仅仅抽取`vendor`是不够的。如果你试图在应用代码中修改一些东西：
+
+```javascript
+// index.js
+…
+…
+
+// E.g. add this:
+console.log('Wat');
+```
+你会注意到`vendor`的 hash 值也会改变：
+
+```bash
+                           Asset   Size  Chunks             Chunk Names
+./vendor.d9e134771799ecdf9483.js  47 kB       1  [emitted]  vendor
+```
+to
+
+```bash
+                            Asset   Size  Chunks             Chunk Names
+./vendor.e6ea4504d61a1cc1c60b.js  47 kB       1  [emitted]  vendor
+```
+发生这样的事是因为 webpack 打包时，一部分 modules 的代码，拥有 [_a runtime_](https://webpack.js.org/concepts/manifest/) - 管理模块执行一部分代码。当你将代码拆分成多个文件时，这小部分代码在 chunk ids 和 匹配的文件之间开始了一个映射：
+
+```javascript
+// vendor.e6ea4504d61a1cc1c60b.js
+script.src = __webpack_require__.p + chunkId + "." + {
+  "0": "2f2269c7f0a55a5c1871"
+}[chunkId] + ".js";
+```
+Webpack 将最新生成的 chunk 包含了这个 runtime 内，这个 chunk 就是我们代码中的`vendor`。与此同时每一次任何 `chunk`的改变，这一小部分代码也改变，导致整个 `vendor` chunk 也改变、
+
+为了解决这个问题，我们将这个 runtime 转义到一个独立的文件中，通过`CommonsChunkPlugin`创建一个额外的空的 chunk：
+
+```javascript
+// webpack.config.js
+module.exports = {
+  plugins: [
+    new webpack.optimize.CommonsChunkPlugin({
+      name: 'vendor',
+
+      minChunks: module => module.context &&
+        module.context.includes('node_modules'),
+    }),
+
+    // This plugin must come after the vendor one (because webpack
+    // includes runtime into the last chunk)
+    new webpack.optimize.CommonsChunkPlugin({
+      name: 'runtime',
+
+      // minChunks: Infinity means that no app modules
+      // will be included into this chunk
+      minChunks: Infinity,
+    }),
+  ],
+};
+```
+完成这一部分改变，每一次 build 都将生成三个文件：
+
+```bash
+$ webpack
+Hash: ac01483e8fec1fa70676
+Version: webpack 3.8.1
+Time: 3816ms
+                            Asset     Size  Chunks             Chunk Names
+   ./main.00bab6fd3100008a42b0.js    82 kB       0  [emitted]  main
+ ./vendor.26886caf15818fa82dfa.js    46 kB       1  [emitted]  vendor
+./runtime.79f17c27b335abc7aaf4.js  1.45 kB       3  [emitted]  runtime
+```
+将他们反过来顺序添加到 index.html 中，你就搞定了：
+
+```html
+<!-- index.html -->
+<script src="./runtime.79f17c27b335abc7aaf4.js"></script>
+<script src="./vendor.26886caf15818fa82dfa.js"></script>
+<script src="./main.00bab6fd3100008a42b0.js"></script>
+```
+#### Further reading
+
+*   Webpack guide [on long term caching](https://webpack.js.org/guides/caching/)
+*   Webpack docs [about webpack runtime and manifest](https://webpack.js.org/concepts/manifest/)
+*   [“Getting the most out of the CommonsChunkPlugin”](https://medium.com/webpack/webpack-bits-getting-the-most-out-of-the-commonschunkplugin-ab389e5f318)
+
+### Inline webpack runtime to save an extra HTTP request 内联 webpack runtime 节省额外的 HTTP  请求
+
+为了做的更好，尽力把 webpack runtime 内联在 HTML 请求里。下面举例：
+
+```html
+<!-- index.html -->
+<script src="./runtime.79f17c27b335abc7aaf4.js"></script>
+```
+这样做：
+
+```html
+<!-- index.html -->
+<script>
+!function(e){function n(r){if(t[r])return t[r].exports;…}} ([]);
+</script>
+```
+这个 runtime 很小，内联它可以帮助你节省 HTTP 请求（尤其对 HTTP/1 重要；但是在 HTTP/2 就没有那么重要了，但是仍能够提高效率）。
+
+下面就来看看如何做。
+
+#### 如果使用 HtmlWebpackPlugin 来生成 HTML
+
+如果使用 [`HtmlWebpackPlugin`](https://github.com/jantimon/html-webpack-plugin) 来生成 HTML 文件，[`InlineChunkWebpackPlugin`](https://github.com/rohitlodha/html-webpack-inline-chunk-plugin) 就足够了。
+
+#### 如果使用自己的定制服务逻辑来生成 HTML
+
+1. 将 runtime 名称成静态明确的文件名：
+
+```javascript
+// webpack.config.js
+module.exports = {
+  plugins: [
+    new webpack.optimize.CommonsChunkPlugin({
+      name: 'runtime',
+      minChunks: Infinity,
+      filename: 'runtime.js',
+        // → Now the runtime file will be called
+        // “runtime.js”, not “runtime.79f17c27b335abc7aaf4.js”
+    }),
+  ],
+};
+```
+2. 将方便的方式将 runtime.js 嵌入进去。比如：Node.js 和 Express
+
+```javascript
+// server.js
+const fs = require('fs');
+const runtimeContent = fs.readFileSync('./runtime.js', 'utf-8');
+
+app.get('/', (req, res) => {
+  res.send(`
+    …
+    <script>${runtimeContent}</script>
+    …
+  `);
+});
+```
+### 懒加载
+
+有时候，页面拥有或多或少的部分：
+
+* 如果你在 YouTube 上加载一个视频页面，相比评论区域你更在乎视频区域。这就是视频要比评论区域重要。
+* 如果你在一个新闻网站打开一个报道，相比广告区域你更关心文章的内容。这就是文字比广告更重要。
+
+在这些案例中，通过仅下载最重要的部分，懒加载剩余区域能够提升最初的加载性能。使用 [the `import()` function](https://webpack.js.org/api/module-methods/#import-) 和 [code-splitting](https://webpack.js.org/guides/code-splitting/) 解决这个问题：
+
+
+```javascript
+// videoPlayer.js
+export function renderVideoPlayer() { … }
+
+// comments.js
+export function renderComments() { … }
+
+// index.js
+import {renderVideoPlayer} from './videoPlayer';
+renderVideoPlayer();
+
+// …Custom event listener
+onShowCommentsClick(() => {
+  import('./comments').then((comments) => {
+    comments.renderComments();
+  });
+});
+```
+`import()`明确表示你期望动态地加载独立的 module。当 webpack 看到 `import('./module.js')`时，他就会将这个 module 移到独立的 chunk 中：
+
+```bash
+$ webpack
+Hash: 39b2a53cb4e73f0dc5b2
+Version: webpack 3.8.1
+Time: 4273ms
+                            Asset     Size  Chunks             Chunk Names
+      ./0.8ecaf182f5c85b7a8199.js  22.5 kB       0  [emitted]
+   ./main.f7e53d8e13e9a2745d6d.js    60 kB       1  [emitted]  main
+ ./vendor.4f14b6326a80f4752a98.js    46 kB       2  [emitted]  vendor
+./runtime.79f17c27b335abc7aaf4.js  1.45 kB       3  [emitted]  runtime
+```
+并且只在代码执行到 `import()` 才会下载。
+
+这将会让 main bundle 更小，提升初始加载的时间。更重要的是改进缓存 - 如果你修改 main chunk 的代码，其他部分的 chunk 也不会受影响。
+
+> Note: 如果使用 Babel 编译代码，你会因为 Babel 还不认识 _import()_ 而遇到语法错误抛出来。可以使用 [`syntax-dynamic-import`](https://www.npmjs.com/package/babel-plugin-syntax-dynamic-import) 解决这个错误。
+
+#### Further reading
+
+*   Webpack docs [for the `import()` function](https://webpack.js.org/api/module-methods/#import-)
+*   The JavaScript proposal [for implementing the `import()` syntax](https://github.com/tc39/proposal-dynamic-import)
+
+### Split the code into routes and pages 拆分代码到路由和页面中
+
+如果你的应用拥有多个路由或者页面，但是代码中只有单独一个 JS 文件（一个单独的 main chunk），这看起来你正在每一个请求中节省额外的 bytes 带宽。举个例子，当用户正在访问你网站的首页：
+
+![site-home-page](https://img10.360buyimg.com/uba/jfs/t17272/291/466883786/44644/f5b82d7c/5a8159b0N4fe9f50d.png)
+
+他们并不需要加载另外不同的页面上渲染文章标题的的代码 - 但是他们还是会加载到这段代码。更严重的是如果用户经常只访问首页，同时你还经常改变渲染文章标题的代码，webpack 将会对整个 bundle 失效 - 用户每次都会重复下载全部 app 的代码。
+
+如果我们将代码拆分到页面里（或者单页面应用的路由里），用户就会下载对他有意义的代码。更好的是，浏览器也会更好地缓存代码：当你改变首页的代码时，webpack 只会让相匹配的 chunk 失效。
+
+#### For single-page apps 对于单页面应用
+
+
+通过路由拆分带页面引用，使用`import()`（看看 [“Lazy-load code that you don’t need right now”](https://developers.google.com/web/fundamentals/performance/webpack/use-long-term-caching#lazy-loading)这部分）。如果你在使用一个框架，现在已经有成熟的方案：
+
+*   [“Code Splitting”](https://reacttraining.com/react-router/web/guides/code-splitting) in `react-router`'s docs (for React)
+*   [“Lazy Loading Routes”](https://router.vuejs.org/en/advanced/lazy-loading.html) in `vue-router`'s docs (for Vue.js)
+
+#### For traditional multi-page apps 对于传统的多页面应用
+
+通过页面拆分传统多页面应用，可以使用 webpack 的 [_entry points_](https://webpack.js.org/concepts/entry-points/) 。如果你的应用有三种页面：主页、文章页、用户账户页，那就分厂三个 entries：
+
+
+```javascript
+// webpack.config.js
+module.exports = {
+  entry: {
+    home: './src/Home/index.js',
+    article: './src/Article/index.js',
+    profile: './src/Profile/index.js'
+  },
+};
+```
+对于每一个 entry 文件，webpack 将构建出独立的依赖树，并且声称一个 bundle，它将通过 entry 来只包括用到的 modules：
+
+```bash
+$ webpack
+Hash: 318d7b8490a7382bf23b
+Version: webpack 3.8.1
+Time: 4273ms
+                            Asset     Size  Chunks             Chunk Names
+      ./0.8ecaf182f5c85b7a8199.js  22.5 kB       0  [emitted]
+   ./home.91b9ed27366fe7e33d6a.js    18 kB       1  [emitted]  home
+./article.87a128755b16ac3294fd.js    32 kB       2  [emitted]  article
+./profile.de945dc02685f6166781.js    24 kB       3  [emitted]  profile
+ ./vendor.4f14b6326a80f4752a98.js    46 kB       4  [emitted]  vendor
+./runtime.318d7b8490a7382bf23b.js  1.45 kB       5  [emitted]  runtime
+```
+ 因此，如果仅仅是文章页使用_Lodash_，_home_ 和 _profile_ 的 bundle 将不会包含 lodash - 同时用户也不会在访问首页的时候下载到这个库。
+
+拆分依赖树也有缺点。如果两个 entry points 都用到了_loadash_，同时你没有在 _vendor_ 移除掉依赖，两个 entry points 将包括两个重复的_lodash_。我们使用[`CommonsChunkPlugin`](https://webpack.js.org/plugins/commons-chunk-plugin/)解决这个问题 - 它会将通用的依赖转移到一个独立的文件中：
+
+```javascript
+// webpack.config.js
+module.exports = {
+  plugins: [
+    new webpack.optimize.CommonsChunkPlugin({
+      // A name of the chunk that will include the common dependencies
+      name: 'common',
+
+      // The plugin will move a module into a common file
+      // only if it’s included into `minChunks` chunks
+      // (Note that the plugin analyzes all chunks, not only entries)
+      minChunks: 2,    // 2 is the default value
+    }),
+  ],
+};
+```
+随意使用`minChunks`的值来找到最优的选项。通常情况下，你想要它尽可能体积小，但它会增加 chunks 的数量。举个例子，3 个 chunk，`minChunks` 可能是 2 个，但是 30 个 chunk，它可能是 8 个 - 因为如果你把它设置成 2 ，过多的 modules 将会打包进一个通用文件中，文件更臃肿。
+
+#### Further reading
+
+*   Webpack docs [about the concept of entry points](https://webpack.js.org/concepts/entry-points/)
+*   Webpack docs [about the CommonsChunkPlugin](https://webpack.js.org/plugins/commons-chunk-plugin/)
+*   [“Getting the most out of the CommonsChunkPlugin”](https://medium.com/webpack/webpack-bits-getting-the-most-out-of-the-commonschunkplugin-ab389e5f318)
+
+### Make module ids more stable 让 module ide 更稳定
+
+当编译代码时，webpack 会分配给每一个 module 一个 ID。之后，这些 ID 就会被`require()`引用到 bundle 内部。你可以在编译输出的右侧在 moudle 路径之前看到这些 ID：
+
+
+```bash
+$ webpack
+Hash: df3474e4f76528e3bbc9
+Version: webpack 3.8.1
+Time: 2150ms
+                           Asset      Size  Chunks             Chunk Names
+      ./0.8ecaf182f5c85b7a8199.js  22.5 kB       0  [emitted]
+   ./main.4e50a16675574df6a9e9.js    60 kB       1  [emitted]  main
+ ./vendor.26886caf15818fa82dfa.js    46 kB       2  [emitted]  vendor
+./runtime.79f17c27b335abc7aaf4.js  1.45 kB       3  [emitted]  runtime
+```
+here
+
+```bash
+   [0] ./index.js 29 kB {1} [built]
+   [2] (webpack)/buildin/global.js 488 bytes {2} [built]
+   [3] (webpack)/buildin/module.js 495 bytes {2} [built]
+   [4] ./comments.js 58 kB {0} [built]
+   [5] ./ads.js 74 kB {1} [built]
+    + 1 hidden module
+```
+默认情况下，这些 ID 是使用计数器计算出来的（比如第一个 module 是 ID 0，第二个 moudle 就是 ID 1，以此类推）。这样的问题就在于当你新增一个 module 事，它会出现在原来 module 列表中的中间，改变后面所有 module 的 ID：
+
+
+```bash
+$ webpack
+Hash: df3474e4f76528e3bbc9
+Version: webpack 3.8.1
+Time: 2150ms
+                           Asset      Size  Chunks             Chunk Names
+      ./0.5c82c0f337fcb22672b5.js    22 kB       0  [emitted]
+   ./main.0c8b617dfc40c2827ae3.js    82 kB       1  [emitted]  main
+ ./vendor.26886caf15818fa82dfa.js    46 kB       2  [emitted]  vendor
+./runtime.79f17c27b335abc7aaf4.js  1.45 kB       3  [emitted]  runtime
+   [0] ./index.js 29 kB {1} [built]
+   [2] (webpack)/buildin/global.js 488 bytes {2} [built]
+   [3] (webpack)/buildin/module.js 495 bytes {2} [built]
+```
+↓ 我们增加一个新 module
+
+```bash
+[4] ./webPlayer.js 24 kB {1} [built]
+```
+↓ 现在看这里做了什么！`comments.js`现在的 ID 由 4 变成了 5
+
+```bash
+[5] ./comments.js 58 kB {0} [built]
+```
+↓ `ads.js` 的 ID 由 5 变成 6
+
+```bash
+[6] ./ads.js 74 kB {1} [built]
+       + 1 hidden module
+```
+这将使包含或依赖于具有更改ID的模块的所有块无效 - 即使它们的实际代码没有更改。在我们的代码中，_0_这个 chunk 和 _main_ chunk 都会失效 - 只有_main_才应该失效。
+
+使用[`HashedModuleIdsPlugin`](https://webpack.js.org/plugins/hashed-module-ids-plugin/)插件改变module ID 如何计算来解决这个问题。它利用 module 路径的 hash 来替换掉计数器：
+
+```bash
+$ webpack
+Hash: df3474e4f76528e3bbc9
+Version: webpack 3.8.1
+Time: 2150ms
+                           Asset      Size  Chunks             Chunk Names
+      ./0.6168aaac8461862eab7a.js  22.5 kB       0  [emitted]
+   ./main.a2e49a279552980e3b91.js    60 kB       1  [emitted]  main
+ ./vendor.ff9f7ea865884e6a84c8.js    46 kB       2  [emitted]  vendor
+./runtime.25f5d0204e4f77fa57a1.js  1.45 kB       3  [emitted]  runtime
+```
+↓ Here
+
+```bash
+[3IRH] ./index.js 29 kB {1} [built]
+[DuR2] (webpack)/buildin/global.js 488 bytes {2} [built]
+[JkW7] (webpack)/buildin/module.js 495 bytes {2} [built]
+[LbCc] ./webPlayer.js 24 kB {1} [built]
+[lebJ] ./comments.js 58 kB {0} [built]
+[02Tr] ./ads.js 74 kB {1} [built]
+    + 1 hidden module
+```
+有了这个方法，只有你重命名护着删除这个 moudle 它的 ID 才会变化。新的 modules 不会因为 module ID 互相影响。
+
+启用这个插件，在配置中增加 _plugins_：
+
+```javascript
+// webpack.config.js
+module.exports = {
+  plugins: [
+    new webpack.HashedModuleIdsPlugin(),
+  ],
+};
+```
+#### Further reading
+
+*   Webpack docs [about the HashedModuleIdsPlugin](https://webpack.js.org/plugins/hashed-module-ids-plugin/)
+
+### Summing up
+
+*   Cache the bundle and differentiate between them by changing their names
+*   Split the bundle into app code, vendor code and runtime
+*   Inline the runtime to save an HTTP request
+*   Lazy-load non-critical code with `import`
+*   Split code by routes/pages to avoid loading unnecessary stuff
+
+===
+
+## Monitor and analyze the app 监控并分析
+
+作者 [Ivan Akulov](https://developers.google.com/web/resources/contributors/iamakulov)
+
+即使当你配置好你的 webpack 让你的引用尽可能体积较小的时候，跟踪这个应用就非常重要，同时了解里面包含了什么。除此之外，你安装一个依赖，它将让你的 app 增加两倍大小 - 但并没有注意到这个问题！
+
+这一部分就来讲解一些能够帮助你理解你的 bundle 的工具。
+
+### Keep track of the bundle size 跟踪打包的体积
+
+在开发时可以使用[webpack-dashboard](https://github.com/FormidableLabs/webpack-dashboard/)和命令行[bundlesize](https://github.com/siddharthkp/bundlesize) 来监控 app 的体积。
+
+#### webpack-dashboard
+
+[webpack-dashboard](https://github.com/FormidableLabs/webpack-dashboard/)可以通过依赖体积大小、进程和其他细节来改进 webpack 的输出。
+
+![webpack-dashboard](http://img30.360buyimg.com/uba/jfs/t16294/169/2125639991/38263/ad862ba/5a8159c0N0da38a60.png)
+
+这个 dashborad 帮助我们跟踪大型依赖 - 如果你增加一个依赖，你就立刻能在 Modules section 始终看到它！
+
+启用这个功能，需要安装 _webpack-dashboard_ 包：
+
+```bash
+npm install webpack-dashboard --save-dev
+```
+ 同时在配置的 plugins 增加：
+
+```javascript
+// webpack.config.js
+const DashboardPlugin = require('webpack-dashboard/plugin');
+
+module.exports = {
+  plugins: [
+    new DashboardPlugin(),
+  ],
+};
+```
+或者如果正在使用基于 Express dev server 可以使用 `compiler.apply()`：
+
+```bash
+compiler.apply(new DashboardPlugin());
+```
+多尝试 dashboard 找出改进的地方！比如，在 modules section 滚动找到那个库体积过大，把它替换成小的可替代的库。
+
+#### bundlesize
+
+[bundlesize](https://github.com/siddharthkp/bundlesize) 可以验证 webpack assets 不超过指定的大小。通过自动化 CI 就可以知晓 app 是否变的过于臃肿：
+
+![bundlesize](https://img30.360buyimg.com/uba/jfs/t15808/165/2111159728/110001/633e93ab/5a8159cdN1c575a1f.jpg)
+
+配置如下：
+
+##### **Find out the maximum sizes** 找出最大体积
+
+1. 分析 app 尽可能减小体积，执行生产环境的 build。
+2. 在`package.json`中增加`bundlesize`部分：
+
+```json
+// package.json
+{
+  "bundlesize": [
+    {
+      "path": "./dist/*"
+    }
+  ]
+}
+```
+3. 使用`npx`执行`bundlesize`：
+
+```bash
+npx bundlesize
+```
+它就会将每一个文件的 gzip 压缩后的体积打印出来：
+
+```bash
+PASS  ./dist/icon256.6168aaac8461862eab7a.png:  10.89KB PASS./dist/icon512.c3e073a4100bd0c28a86.png:  13.1KB PASS./dist/main.0c8b617dfc40c2827ae3.js:  16.28KB PASS./dist/vendor.ff9f7ea865884e6a84c8.js:  31.49KB
+```
+4. 每一个体积增加10-20%，你将得到最大体积。这个10-20％的幅度可以让你像往常一样开发应用程序，同时警告你，当它的大小增长太多。
+
+##### **Enable `bundlesize`** 启用 bundlesize
+
+5.安装_bundlesize_开发依赖
+
+```bash
+npm install bundlesize --save-dev
+```
+6.在`package.json`中的`bundlesize`部分，声明具体的最大值。对于某一些文件（比如图片），你可以单独根据文件类型来设置最大体积大小，而不需要根据每一个文件：
+
+
+```json
+// package.json
+{
+  "bundlesize": [
+    {
+      "path": "./dist/*.png",
+      "maxSize": "16 kB",
+    },
+    {
+      "path": "./dist/main.*.js",
+      "maxSize": "20 kB",
+    },
+    {
+      "path": "./dist/vendor.*.js",
+      "maxSize": "35 kB",
+    }
+  ]
+}
+```
+7.增加一个 npm 脚本来执行检查：
+
+```json
+// package.json
+{
+  "scripts": {
+    "check-size": "bundlesize"
+  }
+}
+```
+8.配置自动化 CI 来在每一次 push 时执行`npm run check-size`做检查。（如果你在 Github 上开发项目，直接可以使用[integrate `bundlesize` with GitHub](https://github.com/siddharthkp/bundlesize#2-build-status)。）
+
+这就全部了！现在如果你运行`npm run check-size`或者 push 代码，你就会看到输出的文件是否足够小：
+
+![bundlesize-output-success](https://img14.360buyimg.com/uba/jfs/t14890/146/2205111432/17457/fa7f748a/5a8159dcN17378d16.png)
+
+或者下面失败的情况
+
+![bundlesize-output-failure](https://img11.360buyimg.com/uba/jfs/t16969/198/453213154/26368/834a1c7f/5a8159e8Nc1f5ffe8.png)
+
+#### Further reading
+
+*   Alex Russell [about the real-world loading time we should target](https://infrequently.org/2017/10/can-you-afford-it-real-world-web-performance-budgets/)
+
+### Analyze why the bundle is so large 分析 bundle 为什么这么大
+
+你想要深挖 bundle 内，看看里面具体哪些 module 占用多大空间。[webpack-bundle-analyzer](https://github.com/webpack-contrib/webpack-bundle-analyzer)
+
+(Screen recording from [github.com/webpack-contrib/webpack -bundle-analyzer](https://github.com/webpack-contrib/webpack-bundle-analyzer))
+
+webpack-bundle-analyzer 可以扫描 bundle 同时构建一个查看内部的可视化窗口。使用这个可视化工具找到过大或者不必要的依赖。
+
+使用这个分析器，需要安装`webpack-bundle-analyzer`包：
+
+```bash
+npm install webpack-bundle-analyzer --save-dev
+```
+在 config 中增加插件：
+
+```javascript
+// webpack.config.js
+const BundleAnalyzerPlugin = require('webpack-bundle-analyzer').BundleAnalyzerPlugin;
+
+module.exports = {
+  plugins: [
+    new BundleAnalyzerPlugin(),
+  ],
+};
+```
+运行生产环境的 build。这个插件就会在浏览器中打开一个显示状态的页面。
+
+默认情况下，这个页面会显示语法分析后的文件体积（在 bundle 出现的文件）。您可能想比较 gzip 的大小，因为这更接近实际用户的体验；使用左边的边栏来切换尺寸。
+
+> Note: 如果你使用 [ModuleConcatenationPlugin](https://webpack.js.org/plugins/module-concatenation-plugin/)，它可能在webpack-bundle-analyzer输出时合并一部分 module，使得报告小一些细节。如果你使用这个插件，在执行分析的时候需要禁用掉。
+
+下面是报告中需要看什么：
+
+* **大型依赖** 为什么体积这么大？是否有更小的替代包（比如 Preact 替代 React）？用了全部代码（比如 Moment.js 包含大量的本地变量 [that are often not used and could be dropped](https://github.com/GoogleChromeLabs/webpack-libs-optimizations#moment)）？
+* **重复依赖** 是否在不同文件中看到相同的库？（使用_CommonsChunkPlugin_将他们移到一个通用文件内）亦或是在同一个库中 bundle 拥有多个版本？
+* **相似依赖** 是否存在有相似功能的相似库存在？（比如_moment_和_date-fns_ 或者 _lodash_ 和 _lodash-es_）尽力汇总成一个。
+
+同样的，也可以看看 Sean Larkin 的文章 [great analysis of webpack bundles](https://medium.com/webpack/webpack-bits-getting-the-most-out-of-the-commonschunkplugin-ab389e5f318)。
+
+### Summing up
+
+*   Use `webpack-dashboard` and `bundlesize` to stay tuned of how large your app is
+*   Dig into what builds up the size with `webpack-bundle-analyzer`
+
+===
+## Conclusion结尾
+
+总结一下：
+
+* **剔除不必要的体积** 把所有的都压缩，剔除无用代码，增加依赖是保持谨慎小心。
+* **通过路由拆分代码** 只在真正需要的时候才加载，其他的部分做来加载。
+* **缓存代码** 应用程序的某些部分更新频率低于其他部分，将这些部分拆分成文件，以便在必要时仅重新下载。
+* **跟踪体积大小** 使用  [webpack-dashboard](https://github.com/FormidableLabs/webpack-dashboard/) 和 [webpack-bundle-analyzer](https://github.com/webpack-contrib/webpack-bundle-analyzer) 监控你的 app。每隔几个月重新检查一下你的应用的性能。
+
+Webpack 不仅仅是一个帮助你创建 app 更快的工具。它还帮助是你的 app 成为 [a Progressive Web App](https://developers.google.com/web/progressive-web-apps/) ，你的引用拥有更好的体检自动化的填充工具就像[Lighthouse](https://developers.google.com/web/tools/lighthouse/)根据环境给出建议。
+
+不要忘记阅读 [webpack docs](https://webpack.js.org/guides/) - 里面提供了大量的优化的信息。
+
+记得练习一下 [with the training app](https://github.com/GoogleChromeLabs/webpack-training-project)！
