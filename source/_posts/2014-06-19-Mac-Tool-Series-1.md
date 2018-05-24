@@ -1,7 +1,7 @@
 ---
 layout: post
 title : Mac Tool 
-category : blog
+category : 技术
 tags : [Tool, Mac]
 description : Mac OSX 下佳软推荐 Dash 和 CheatSheet
 date: 2014-06-19 00:00:01

@@ -1,7 +1,9 @@
+---
+layout: post
 title: Notes Of 360 Front-End Lesson
 category : Note
 date: 2015-11-22 23:32:19
-tags: [Javascript, ReractJS, NodeJS, Front-End]
+tags: [Javascript, ReactJS, NodeJS, Front-End]
 ---
 
 360前端训练营笔记

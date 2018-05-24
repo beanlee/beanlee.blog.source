@@ -1,7 +1,7 @@
 ---
 layout: post
 title : Swift Study 1
-category : blog
+category : 技术
 tags : [Apple, Swift]
 description : Swift is an important chance to find coding passion back to me. So Do Not Lose It! Come on!
 date: 2014-06-08 00:00:01

@@ -1,7 +1,9 @@
+---
+layout: post
 title: Try My Best
 date: 2015-07-19 16:47:21
 category : blog
-tags: [life]
+tags: [生活]
 ---
 
 > Be who you are and say what you feel, because those who mind don't matter and those who matter don't mind.

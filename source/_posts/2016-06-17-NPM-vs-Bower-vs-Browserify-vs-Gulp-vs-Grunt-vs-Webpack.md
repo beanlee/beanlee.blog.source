@@ -2,8 +2,8 @@
 layout: post
 title: 【译】NPM vs Bower vs Browserify vs Gulp vs Grunt vs Webpack
 date: 2016-06-17 14:35:33
-category : 译文计划
-tags: [翻译, Javascript, Front-End]
+category : 前端技术
+tags: [翻译, Webpack, NPM]
 ---
 
 这是一篇在 Stack overflow 看到的一篇问题和回答，对于自己有一些解惑

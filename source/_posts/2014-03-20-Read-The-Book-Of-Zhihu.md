@@ -3,7 +3,7 @@ layout: post
 title : 书摘随笔
 category : blog
 tagline: ""
-tags : [reading]
+tags : [阅读]
 description : 读《创业时，我们在知乎聊什么》书摘随笔一
 date: 2014-03-20 00:00:01
 ---

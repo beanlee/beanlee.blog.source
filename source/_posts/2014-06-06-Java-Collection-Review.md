@@ -1,7 +1,7 @@
 ---
 layout: post
 title : Java基础集合类复习
-category : blog
+category : 技术
 tagline: ""
 tags : [Java, 总结]
 description : Java基础集合类的问题简单整理

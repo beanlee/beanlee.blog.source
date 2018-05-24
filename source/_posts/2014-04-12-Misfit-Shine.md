@@ -3,7 +3,7 @@ layout: post
 title : 有设计感的数码产品才能打动人心
 category : blog
 tagline: ""
-tags : [digital, 数码]
+tags : [数码产品]
 description : 夏日来袭，笔者对比了几款运动手环，最终入手Misfit Shine带来开箱图文和简单对比分享
 date: 2014-04-12 00:00:01
 ---

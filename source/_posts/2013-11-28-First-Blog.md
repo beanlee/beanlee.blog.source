@@ -1,4 +1,5 @@
 ---
+layout: post
 title : 开篇
 category : blog
 tags : 

@@ -3,7 +3,7 @@ layout: post
 title : 英雄再见
 category : blog
 tagline: "《獵命師傳奇》最终章"
-tags : [reading]
+tags : [阅读]
 description : 断断续续地在地铁上读完这本小说，九把刀的长篇《獵命師傳奇》，乱写点随笔
 date: 2013-12-04 00:00:01
 ---

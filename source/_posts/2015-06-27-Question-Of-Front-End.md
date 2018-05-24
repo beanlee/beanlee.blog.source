@@ -1,7 +1,9 @@
+---
+layout: post
 title: Questions Of Front-End
-category : Note
+category : [前端技术]
 date: 2015-06-27 08:32:19
-tags: [Javascript, HTML, CSS, Front-End]
+tags: [Front-End]
 ---
 
 前端问题总结整理，持续更新和学习，找到想做的就加油做个行动派吧！

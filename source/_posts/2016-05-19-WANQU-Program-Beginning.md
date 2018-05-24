@@ -1,9 +1,9 @@
 ---
 layout: post
 title : 【译】I know how to program, but I don't know what to program
-category : 译文计划
+category : 翻译
 tagline: ""
-tags : [翻译, 英语学习]
+tags : [翻译]
 description : 译文计划
 date: 2016-05-19 22:10:01
 ---

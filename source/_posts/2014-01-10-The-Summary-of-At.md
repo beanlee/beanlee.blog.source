@@ -1,9 +1,9 @@
 ---
 layout: post
 title : 微博等SNS@功能探索技术验证总结
-category : blog
+category : 技术
 tagline: ""
-tags : [分享, 总结]
+tags : [总结]
 description : 公司阶段技术预言项，推特微博等@人员功能，断断续续3-4天时间，做了一些总结在Blog中和大家分享
 date: 2014-01-10 00:00:01
 ---

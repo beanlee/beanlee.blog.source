@@ -1,9 +1,9 @@
 ---
 layout: post
 title : 科学上网之VPN推荐系列
-category : blog
+category : 技术
 tagline: ""
-tags : [VPN, Share]
+tags : [VPN]
 description : “工欲善其事，必先利其器” 今天笔者来和大家一起分享，最近查阅资料整理后的一些关于VPN的那点事儿。
 date: 2014-06-28 00:00:01
 ---
